@@ -1,0 +1,17 @@
+query  {
+    getKtp(id:"YfO_tBQ5MreSplaHhEO6O") {
+      nik
+    }
+}
+
+mutation {
+	deleteKtp(id:""){
+	
+	}
+}
+
+mutation {
+	updateKtp(id:"YfO_tBQ5MreSplaHhEO6O",input: {nik: "111", tanggal_lahir:"2020-05-01", nama:"reihan", agama:"islam", jenis_kelamin:"laki-laki"}){
+	
+	}
+}

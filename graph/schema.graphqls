@@ -1,0 +1,39 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+scalar Time
+
+" Struktur data KTP (FULL) "
+type Ktp {
+  id : ID!
+  nik : String!
+  nama: String!
+  agama: String!
+  jenis_kelamin: String!
+  tanggal_lahir: Time!
+  created_at: Time!
+  updated_at: Time!
+}
+
+" Struktur data body KTP (Untuk keperluan create dan update)"
+input NewKtp {
+  nik : String!
+  nama: String!
+  agama: String!
+  jenis_kelamin: String!
+  tanggal_lahir: String!
+}
+
+type Query {
+  getAllKtp: [Ktp]
+  getKtp(id: ID!): Ktp
+}
+
+" Modifikasi data "
+type Mutation {
+  createKtp(input: NewKtp!): Ktp!
+  updateKtp(id: ID!, input: NewKtp): Boolean!
+  deleteKtp(id: ID!): Boolean!
+}
+
