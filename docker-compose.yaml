@@ -3,15 +3,16 @@ services:
   ktp:
     build: .
     ports: 
-      - 8080:8080
+      - 8085:8080
     networks:
       - dbconnect
     depends_on:
       - "mariadb"
+    restart: unless-stopped
   mariadb:
     image: mariadb:10.3
     ports:
-      - 3306:3306
+      - 3311:3306
     environment:
       - MYSQL_ROOT_PASSWORD=reihan
       - MYSQL_DATABASE=ktp
@@ -19,6 +20,7 @@ services:
       - MYSQL_PASSWORD=reihan
     networks:
       - dbconnect
+    restart: unless-stopped
 networks:
   dbconnect:
     driver: bridge
