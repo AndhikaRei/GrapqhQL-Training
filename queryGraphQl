@@ -5,6 +5,12 @@ query  {
 }
 
 mutation {
+	createKtp(input: {nik: "111", tanggal_lahir:"2020-05-01", nama:"reihan", agama:"islam", jenis_kelamin:"laki-laki"}){
+	nik,
+	}
+}
+
+mutation {
 	deleteKtp(id:""){
 	
 	}

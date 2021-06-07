@@ -10,6 +10,9 @@ github.com/99designs/gqlgen/graphql/handler/lru
 github.com/99designs/gqlgen/graphql/handler/transport
 github.com/99designs/gqlgen/graphql/introspection
 github.com/99designs/gqlgen/graphql/playground
+# github.com/Masterminds/squirrel v1.5.0
+## explicit
+github.com/Masterminds/squirrel
 # github.com/agnivade/levenshtein v1.1.1
 ## explicit
 github.com/agnivade/levenshtein
@@ -42,6 +45,10 @@ github.com/hashicorp/golang-lru/simplelru
 github.com/jinzhu/inflection
 # github.com/jinzhu/now v1.1.2
 github.com/jinzhu/now
+# github.com/lann/builder v0.0.0-20180802200727-47ae307949d0
+github.com/lann/builder
+# github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0
+github.com/lann/ps
 # github.com/machinebox/graphql v0.2.2
 ## explicit
 github.com/machinebox/graphql

@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"ktp-fix/configs/database"
 	"ktp-fix/internal/models"
 	"log"
 	"time"
 
+	sq "github.com/Masterminds/squirrel"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
@@ -23,6 +25,8 @@ func CreateKtpHandler(ctx context.Context, input models.NewKtp) (*models.Ktp, er
 	/*
 		Parsing tanggal lahir + generate unique id
 	*/
+	users := sq.Select("*").From("users").Join("emails USING (email_id)")
+	fmt.Print(users)
 	tanggal_lahir, err := time.Parse("2006-01-02", input.TanggalLahir)
 	if err != nil {
 		return nil, err
