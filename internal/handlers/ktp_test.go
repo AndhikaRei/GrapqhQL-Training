@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 
 	"ktp-fix/configs/database"
 	"ktp-fix/internal/models"
@@ -13,17 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-/*
-Test membuat ktp dengan data valid
-	@param t (*testing.T):
-
-	@output: akan gagal apabila ktp tidak berhasil dibuat
-	@output: akan sukses apabila ktp baru berhasil dibuat
-*/
+// TestCreateKtp is a function that will test create new ktp with valid data
 func TestCreateKtp(t *testing.T) {
-	var client = graphql.NewClient("http://localhost:8080/query")
 
-	var req = graphql.NewRequest(`
+	client := graphql.NewClient("http://localhost:8080/query")
+
+	req := graphql.NewRequest(`
 		mutation {
 			createKtp(input: {
 				nik: "1335", 
@@ -40,16 +35,13 @@ func TestCreateKtp(t *testing.T) {
 	`)
 
 	ctx := context.Background()
-
 	var respData map[string]interface{}
 	if err := client.Run(ctx, req, &respData); err != nil {
 		t.Error(err)
 
 	}
 
-	/*
-		Assertion
-	*/
+	// Assertion
 	nik := respData["createKtp"].(map[string]interface{})["nik"]
 	assert.Equal(t, nik, "1335", "nik should be equal")
 
@@ -60,17 +52,12 @@ func TestCreateKtp(t *testing.T) {
 	assert.Equal(t, agama, "islam", "agama should be equal")
 }
 
-/*
-Test membuat ktp dengan data tidak valid
-	@param t (*testing.T):
-
-	@output: akan gagal apabila ktp baru berhasil dibuat
-	@output: akan sukses apabila ktp tidak berhasil dibuat
-*/
+// TestCreateKtpFail is a function that will test create new ktp with invalid data
 func TestCreateKtpFail(t *testing.T) {
-	var client = graphql.NewClient("http://localhost:8080/query")
 
-	var req = graphql.NewRequest(`
+	client := graphql.NewClient("http://localhost:8080/query")
+
+	req := graphql.NewRequest(`
 		mutation {
 			createKtp(input: {
 				nik: "1335", 
@@ -90,35 +77,28 @@ func TestCreateKtpFail(t *testing.T) {
 	var respData map[string]interface{}
 	err := client.Run(ctx, req, &respData)
 
-	/*
-		Assertion
-	*/
+	// Assertion
 	assert.NotNil(t, err)
 }
 
-/*
-Test mendapatkan ktp dengan id yang ada di database
-	@param t (*testing.T):
-
-	@output: akan gagal apabila tidak menemukan ktp dengan id tersebut
-	@output: akan sukses apabila ktp dengan id tersebut ditemukan
-*/
+// TestGetKtp is a function that will test getting ktp with valid id on database
 func TestGetKtp(t *testing.T) {
+
 	err := database.ConnectDB()
 	if err != nil {
 		log.Fatal("Error happened")
 	}
 
-	var client = graphql.NewClient("http://localhost:8080/query")
+	client := graphql.NewClient("http://localhost:8080/query")
 
 	ktp := models.Ktp{}
 	rs := database.DB.Where("nik = ?", "1335").First(&ktp)
 	assert.Nil(t, rs.Error)
-	id := ktp.ID
+	id := strconv.Itoa(ktp.ID)
 
-	var req = graphql.NewRequest(`
+	req := graphql.NewRequest(`
 		query  {
-			getKtp(id:"` + id + `") {
+			getKtp(id:` + id + `) {
 				nik,
 				nama,
 				agama
@@ -133,11 +113,7 @@ func TestGetKtp(t *testing.T) {
 		t.Error(err)
 	}
 
-	/*
-		Assertion
-	*/
-	fmt.Print(respData)
-
+	// Assertion
 	nik := respData["getKtp"].(map[string]interface{})["nik"]
 	assert.Equal(t, nik, "1335", "nik should be equal")
 
@@ -148,22 +124,12 @@ func TestGetKtp(t *testing.T) {
 	assert.Equal(t, agama, "islam", "agama should be equal")
 }
 
-/*
-Test mendapatkan ktp dengan id yang tidak ada di database
-	@param t (*testing.T):
-
-	@output: akan gagal apabila ktp dengan id tersebut ditemukan
-	@output: akan sukses apabila tidak menemukan ktp dengan id tersebut
-*/
+// TestGetKtpFail is a function that will test getting ktp with invalid id on database
 func TestGetKtpFail(t *testing.T) {
-	err := database.ConnectDB()
-	if err != nil {
-		log.Fatal("Error happened")
-	}
 
-	var client = graphql.NewClient("http://localhost:8080/query")
+	client := graphql.NewClient("http://localhost:8080/query")
 
-	var req = graphql.NewRequest(`
+	req := graphql.NewRequest(`
 		query  {
 			getKtp(id:"` + `abcdefghijklm` + `") {
 				nik,
@@ -176,25 +142,18 @@ func TestGetKtpFail(t *testing.T) {
 	ctx := context.Background()
 
 	var respData map[string]interface{}
-	err = client.Run(ctx, req, &respData)
+	err := client.Run(ctx, req, &respData)
 
-	/*
-		Assertion
-	*/
+	// Assertion
 	assert.NotNil(t, err)
 }
 
-/*
-Test mendapatkan semua ktp di database dan ada ktp di database
-	@param t (*testing.T):
-
-	@output: akan gagal apabila tidak ada ktp yang diambil
-	@output: akan sukses apabila ada ktp yang diambil
-*/
+// TestGetAllKtp is a function that will test getting al Ktp in database
 func TestGetAllKtp(t *testing.T) {
-	var client = graphql.NewClient("http://localhost:8080/query")
 
-	var req = graphql.NewRequest(`
+	client := graphql.NewClient("http://localhost:8080/query")
+
+	req := graphql.NewRequest(`
 		query  {
 			getAllKtp {
 		  		nik
@@ -209,34 +168,26 @@ func TestGetAllKtp(t *testing.T) {
 		t.Error(err)
 	}
 
-	/*
-		Assertion
-	*/
-	fmt.Print(respData)
+	// Assertion
 	assert.NotEmpty(t, respData["getAllKtp"], "There must be at least one data")
 }
 
-/*
-Test mengupdate ktp dengan id tertentu yang sudah ada di database dengan data yang lengkap
-	@param t (*testing.T):
-
-	@output: akan gagal apabila ktp gagal di update (tidak ditemukan atau alasan lain)
-	@output: akan sukses apabila ktp berhasil di update
-*/
+// TestUpdateKtp is a function that will test updating ktp with valid id and valid data
 func TestUpdateKtp(t *testing.T) {
+
 	err := database.ConnectDB()
 	if err != nil {
 		log.Fatal("Error happened")
 	}
 
-	var client = graphql.NewClient("http://localhost:8080/query")
+	client := graphql.NewClient("http://localhost:8080/query")
 
 	ktp := models.Ktp{}
 	rs := database.DB.Where("nik = ?", "1335").First(&ktp)
 	assert.Nil(t, rs.Error)
-	id := ktp.ID
+	id := strconv.Itoa(ktp.ID)
 
-	var req = graphql.NewRequest(`
+	req := graphql.NewRequest(`
 		mutation {
 			updateKtp(id:"` + id + `"` + ` ,input:{
 				nik: "13352", 
@@ -255,21 +206,37 @@ func TestUpdateKtp(t *testing.T) {
 		t.Error(err)
 	}
 
-	/*
-		Assertion
-	*/
-	fmt.Print(respData)
+	// Assertion
 	isUpdate := respData["updateKtp"]
 	assert.Equal(t, isUpdate, true, "they should be equal")
 }
 
-/*
-Test menghapus ktp dengan id tertentu dan id tersebut ada di database
-	@param t (*testing.T):
+// TestUpdateKtpFail is a function that will test updating ktp with invalid id and invalid data
+func TestUpdateKtpFail(t *testing.T) {
 
-	@output: akan gagal apabila tidak berhasil menghapus ktp dengan id tersebut (tidak ditemukan/alasan lain)
-	@output: akan sukses apabila ktp dengan id tersebut ditemukan dan berhasil dihapus
-*/
+	client := graphql.NewClient("http://localhost:8080/query")
+
+	req := graphql.NewRequest(`
+		mutation {
+			updateKtp(id:"` + "afwwfafewsas" + `"` + ` ,input:{
+				nik: "13352", 
+				tanggal_lahir: "2023-05-01", 
+				nama: "reihanUpdated2",
+				agama: "islamUpdated", 
+			})
+		  }	
+	`)
+
+	ctx := context.Background()
+
+	var respData map[string]interface{}
+	err := client.Run(ctx, req, &respData)
+
+	// Assertion
+	assert.NotNil(t, err)
+}
+
+// TestDeleteKtp is a function that will test deleting ktp with valid id
 func TestDeleteKtp(t *testing.T) {
 
 	err := database.ConnectDB()
@@ -277,14 +244,14 @@ func TestDeleteKtp(t *testing.T) {
 		log.Fatal("Error happened")
 	}
 
-	var client = graphql.NewClient("http://localhost:8080/query")
+	client := graphql.NewClient("http://localhost:8080/query")
 
 	ktp := models.Ktp{}
 	rs := database.DB.Where("nik = ?", "13352").First(&ktp)
 	assert.Nil(t, rs.Error)
-	id := ktp.ID
+	id := strconv.Itoa(ktp.ID)
 
-	var req = graphql.NewRequest(`
+	req := graphql.NewRequest(`
 		mutation {
 			deleteKtp(id:"` + id + `")
 		}	
@@ -297,10 +264,140 @@ func TestDeleteKtp(t *testing.T) {
 		t.Error(err)
 	}
 
-	/*
-		Assertion
-	*/
-	fmt.Print(respData)
 	isDeleted := respData["deleteKtp"]
+
+	// Assertion
 	assert.Equal(t, isDeleted, true, "Must be deleted")
+}
+
+// TestDeleteKtpFail is a function that will test deleting ktp with invalid id
+func TestDeleteKtpFail(t *testing.T) {
+
+	client := graphql.NewClient("http://localhost:8080/query")
+
+	req := graphql.NewRequest(`
+		mutation {
+			deleteKtp(id:"` + "qfdqwfweefdweaewfw" + `")
+		}	
+	`)
+
+	ctx := context.Background()
+
+	var respData map[string]interface{}
+	err := client.Run(ctx, req, &respData)
+
+	// Assertion
+	assert.NotNil(t, err)
+}
+
+// Testing pagination implementation of Ktp
+func TestPaginationKtp(t *testing.T) {
+
+	err := database.ConnectDB()
+	if err != nil {
+		log.Fatal("Error happened")
+	}
+
+	client := graphql.NewClient("http://localhost:8080/query")
+
+	req := graphql.NewRequest(`
+		mutation {
+			createKtp(input: {
+				nik: "1335", 
+				tanggal_lahir: "2023-05-01", 
+				nama: "reihan",
+				jenis_kelamin: "laki-laki",
+				agama: "islam" 
+			}){
+				nik,
+				nama,
+				agama
+			}
+		  }	
+	`)
+
+	ctx := context.Background()
+	var respData map[string]interface{}
+	for i := 0; i < 10; i++ {
+		if err := client.Run(ctx, req, &respData); err != nil {
+			t.Error(err)
+		}
+	}
+
+	req2 := graphql.NewRequest(`
+		query {
+			paginateKtp(input: {
+				first:5,
+				offset:3,
+				after:"NQ==",
+				query:"reihan",
+				sort: ["id"],
+		}){
+			totalcount,
+			pageInfo{
+				endCursor,
+				hasNextPAge
+			},
+			edges{
+				cursor, 
+				node{
+					jenis_kelamin,
+					nik,
+					nama
+				}
+			}
+		}}
+	`)
+	ctx = context.Background()
+	var respData2 map[string]interface{}
+	if err2 := client.Run(ctx, req2, &respData2); err2 != nil {
+		t.Error(err)
+	}
+
+	// Assertion
+	respData2 = respData2["paginateKtp"].(map[string]interface{})
+	pageInfo := respData2["pageInfo"].(map[string]interface{})
+	hasNextPage := pageInfo["hasNextPAge"].(bool)
+	endCursor := pageInfo["endCursor"].(string)
+	assert.False(t, hasNextPage)
+	assert.Equal(t, "MTE=", endCursor)
+
+	totalCount := respData2["totalcount"].(float64)
+	assert.Equal(t, float64(7), totalCount)
+
+}
+
+// Testing pagination implementation of Ktp with invalid input
+func TestPaginationKtpFail(t *testing.T) {
+
+	client := graphql.NewClient("http://localhost:8080/query")
+	req := graphql.NewRequest(`
+		query {
+			paginateKtp(input: {
+				first:"sdwef",
+				after:"ewffwe",
+				query:"reihan",
+				sort: ["id asc"],
+		}){
+			totalcount,
+			pageInfo{
+				endCursor,
+				hasNextPAge
+			},
+			edges{
+				cursor, 
+				node{
+					jenis_kelamin,
+					nik,
+					nama
+				}
+			}
+		}}
+	`)
+	ctx := context.Background()
+	var respData map[string]interface{}
+	err := client.Run(ctx, req, &respData)
+
+	// Assertion
+	assert.NotNil(t, err)
 }

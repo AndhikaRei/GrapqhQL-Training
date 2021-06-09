@@ -11,7 +11,7 @@ scalar Any
 input Pagination {
   first: Int!
   offset: Int!
-  after: ID! 
+  after: ID 
   query: String!
   sort: [String!]! 
 }
@@ -32,14 +32,14 @@ type PaginationInfoKtp {
 type PaginationResultKtp {
   totalcount: Int!
   edges: [PaginationEdgeKtp!]!
-  pageInfo: PaginationInfoKtp
+  pageInfo: PaginationInfoKtp!
 }
 
 # End of generic type/input
 
 " Ktp is the implementation of Indonesian Ktp structure "
 type Ktp {
-  id : ID!
+  id : Int!
   nik : String!
   nama: String!
   agama: String!
@@ -60,15 +60,21 @@ input NewKtp {
 
 " Query is the performance that fetch data on the database "
 type Query {
+  " GetAllKtp will get all Ktp from database "
   getAllKtp: [Ktp]
+  " GetKtp will get Ktp with specific id"
   getKtp(id: ID!): Ktp
+  " PaginateKtp will search ktp with pagination "
   paginateKtp(input: Pagination!): PaginationResultKtp!
 }
 
 " Mutation is performance that change the data on the database "
 type Mutation {
+  " CreateKtp will create Ktp from data input "
   createKtp(input: NewKtp!): Ktp!
+  " UpdateKtp will update Ktp with specific id using data input "
   updateKtp(id: ID!, input: NewKtp): Boolean!
+  " DeleteKtp will delete Ktp with specific id "  
   deleteKtp(id: ID!): Boolean!
 }
 

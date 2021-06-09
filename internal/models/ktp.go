@@ -4,9 +4,9 @@ import (
 	"time"
 )
 
-//  Struktur data KTP (FULL)
+// Ktp is the implementation of Indonesian Ktp structure
 type Ktp struct {
-	ID           string    `json:"id"`
+	ID           int       `json:"id"`
 	Nik          string    `json:"nik"`
 	Nama         string    `json:"nama"`
 	Agama        string    `json:"agama"`
@@ -16,8 +16,8 @@ type Ktp struct {
 	UpdatedAt    time.Time `gorm:"column:updated_at"`
 }
 
-//  TODO: make new ktp not declared here, but in graphql generated schema
-//  Struktur data body KTP (Untuk keperluan create dan update)
+// TODO: make new ktp not declared here, but in graphql generated schema
+// NewKtp is the body ktp for update and create query
 type NewKtp struct {
 	Nik          string `json:"nik"`
 	Nama         string `json:"nama"`

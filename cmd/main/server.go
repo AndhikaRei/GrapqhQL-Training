@@ -19,10 +19,8 @@ const defaultPort = "8080"
 func main() {
 	err := database.ConnectDB()
 	if err != nil {
-		// log.Fatal("Error happened")
-		log.Print("Error db")
+		log.Fatal("Error happened")
 	}
-	// database.DB.AutoMigrate(&models.Ktp{})
 
 	port := os.Getenv("PORT")
 	if port == "" {

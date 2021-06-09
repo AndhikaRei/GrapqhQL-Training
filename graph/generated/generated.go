@@ -6,9 +6,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"ktp-fix/graph/model"
 	"ktp-fix/internal/models"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -60,9 +62,26 @@ type ComplexityRoot struct {
 		UpdateKtp func(childComplexity int, id string, input *models.NewKtp) int
 	}
 
+	PaginationEdgeKtp struct {
+		Cursor func(childComplexity int) int
+		Node   func(childComplexity int) int
+	}
+
+	PaginationInfoKtp struct {
+		EndCursor   func(childComplexity int) int
+		HasNextPAge func(childComplexity int) int
+	}
+
+	PaginationResultKtp struct {
+		Edges      func(childComplexity int) int
+		PageInfo   func(childComplexity int) int
+		Totalcount func(childComplexity int) int
+	}
+
 	Query struct {
-		GetAllKtp func(childComplexity int) int
-		GetKtp    func(childComplexity int, id string) int
+		GetAllKtp   func(childComplexity int) int
+		GetKtp      func(childComplexity int, id string) int
+		PaginateKtp func(childComplexity int, input model.Pagination) int
 	}
 }
 
@@ -74,6 +93,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	GetAllKtp(ctx context.Context) ([]*models.Ktp, error)
 	GetKtp(ctx context.Context, id string) (*models.Ktp, error)
+	PaginateKtp(ctx context.Context, input model.Pagination) (*model.PaginationResultKtp, error)
 }
 
 type executableSchema struct {
@@ -183,6 +203,55 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateKtp(childComplexity, args["id"].(string), args["input"].(*models.NewKtp)), true
 
+	case "PaginationEdgeKtp.cursor":
+		if e.complexity.PaginationEdgeKtp.Cursor == nil {
+			break
+		}
+
+		return e.complexity.PaginationEdgeKtp.Cursor(childComplexity), true
+
+	case "PaginationEdgeKtp.node":
+		if e.complexity.PaginationEdgeKtp.Node == nil {
+			break
+		}
+
+		return e.complexity.PaginationEdgeKtp.Node(childComplexity), true
+
+	case "PaginationInfoKtp.endCursor":
+		if e.complexity.PaginationInfoKtp.EndCursor == nil {
+			break
+		}
+
+		return e.complexity.PaginationInfoKtp.EndCursor(childComplexity), true
+
+	case "PaginationInfoKtp.hasNextPAge":
+		if e.complexity.PaginationInfoKtp.HasNextPAge == nil {
+			break
+		}
+
+		return e.complexity.PaginationInfoKtp.HasNextPAge(childComplexity), true
+
+	case "PaginationResultKtp.edges":
+		if e.complexity.PaginationResultKtp.Edges == nil {
+			break
+		}
+
+		return e.complexity.PaginationResultKtp.Edges(childComplexity), true
+
+	case "PaginationResultKtp.pageInfo":
+		if e.complexity.PaginationResultKtp.PageInfo == nil {
+			break
+		}
+
+		return e.complexity.PaginationResultKtp.PageInfo(childComplexity), true
+
+	case "PaginationResultKtp.totalcount":
+		if e.complexity.PaginationResultKtp.Totalcount == nil {
+			break
+		}
+
+		return e.complexity.PaginationResultKtp.Totalcount(childComplexity), true
+
 	case "Query.getAllKtp":
 		if e.complexity.Query.GetAllKtp == nil {
 			break
@@ -201,6 +270,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetKtp(childComplexity, args["id"].(string)), true
+
+	case "Query.paginateKtp":
+		if e.complexity.Query.PaginateKtp == nil {
+			break
+		}
+
+		args, err := ec.field_Query_paginateKtp_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.PaginateKtp(childComplexity, args["input"].(model.Pagination)), true
 
 	}
 	return 0, false
@@ -271,10 +352,43 @@ var sources = []*ast.Source{
 # https://gqlgen.com/getting-started/
 
 scalar Time
+scalar Map
+scalar Any
 
-" Struktur data KTP (FULL) "
+# Generic Type Input
+" Pagination is default input pagination "
+input Pagination {
+  first: Int!
+  offset: Int!
+  after: ID 
+  query: String!
+  sort: [String!]! 
+}
+
+" Object that is being paginated "
+type PaginationEdgeKtp {
+  node: Ktp!
+  cursor: ID!
+}
+
+" Information about pagination "
+type PaginationInfoKtp {
+  endCursor: ID!
+  hasNextPAge: Boolean!
+}
+
+" Result while querying list using graphql "
+type PaginationResultKtp {
+  totalcount: Int!
+  edges: [PaginationEdgeKtp!]!
+  pageInfo: PaginationInfoKtp!
+}
+
+# End of generic type/input
+
+" Ktp is the implementation of Indonesian Ktp structure "
 type Ktp {
-  id : ID!
+  id : Int!
   nik : String!
   nama: String!
   agama: String!
@@ -284,7 +398,7 @@ type Ktp {
   updated_at: Time!
 }
 
-" Struktur data body KTP (Untuk keperluan create dan update)"
+" NewKtp is the body ktp for update and create query "
 input NewKtp {
   nik : String!
   nama: String!
@@ -293,15 +407,23 @@ input NewKtp {
   tanggal_lahir: String!
 }
 
+" Query is the performance that fetch data on the database "
 type Query {
+  " GetAllKtp will get all Ktp from database "
   getAllKtp: [Ktp]
+  " GetKtp will get Ktp with specific id"
   getKtp(id: ID!): Ktp
+  " PaginateKtp will search ktp with pagination "
+  paginateKtp(input: Pagination!): PaginationResultKtp!
 }
 
-" Modifikasi data "
+" Mutation is performance that change the data on the database "
 type Mutation {
+  " CreateKtp will create Ktp from data input "
   createKtp(input: NewKtp!): Ktp!
+  " UpdateKtp will update Ktp with specific id using data input "
   updateKtp(id: ID!, input: NewKtp): Boolean!
+  " DeleteKtp will delete Ktp with specific id "  
   deleteKtp(id: ID!): Boolean!
 }
 
@@ -397,6 +519,21 @@ func (ec *executionContext) field_Query_getKtp_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_paginateKtp_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.Pagination
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNPagination2ktpᚑfixᚋgraphᚋmodelᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field___Type_enumValues_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -465,9 +602,9 @@ func (ec *executionContext) _Ktp_id(ctx context.Context, field graphql.Collected
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Ktp_nik(ctx context.Context, field graphql.CollectedField, obj *models.Ktp) (ret graphql.Marshaler) {
@@ -841,6 +978,251 @@ func (ec *executionContext) _Mutation_deleteKtp(ctx context.Context, field graph
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _PaginationEdgeKtp_node(ctx context.Context, field graphql.CollectedField, obj *model.PaginationEdgeKtp) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PaginationEdgeKtp",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Node, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*models.Ktp)
+	fc.Result = res
+	return ec.marshalNKtp2ᚖktpᚑfixᚋinternalᚋmodelsᚐKtp(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PaginationEdgeKtp_cursor(ctx context.Context, field graphql.CollectedField, obj *model.PaginationEdgeKtp) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PaginationEdgeKtp",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Cursor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PaginationInfoKtp_endCursor(ctx context.Context, field graphql.CollectedField, obj *model.PaginationInfoKtp) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PaginationInfoKtp",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EndCursor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PaginationInfoKtp_hasNextPAge(ctx context.Context, field graphql.CollectedField, obj *model.PaginationInfoKtp) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PaginationInfoKtp",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HasNextPAge, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PaginationResultKtp_totalcount(ctx context.Context, field graphql.CollectedField, obj *model.PaginationResultKtp) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PaginationResultKtp",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Totalcount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PaginationResultKtp_edges(ctx context.Context, field graphql.CollectedField, obj *model.PaginationResultKtp) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PaginationResultKtp",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Edges, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PaginationEdgeKtp)
+	fc.Result = res
+	return ec.marshalNPaginationEdgeKtp2ᚕᚖktpᚑfixᚋgraphᚋmodelᚐPaginationEdgeKtpᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PaginationResultKtp_pageInfo(ctx context.Context, field graphql.CollectedField, obj *model.PaginationResultKtp) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PaginationResultKtp",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PageInfo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PaginationInfoKtp)
+	fc.Result = res
+	return ec.marshalNPaginationInfoKtp2ᚖktpᚑfixᚋgraphᚋmodelᚐPaginationInfoKtp(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query_getAllKtp(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -910,6 +1292,48 @@ func (ec *executionContext) _Query_getKtp(ctx context.Context, field graphql.Col
 	res := resTmp.(*models.Ktp)
 	fc.Result = res
 	return ec.marshalOKtp2ᚖktpᚑfixᚋinternalᚋmodelsᚐKtp(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_paginateKtp(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_paginateKtp_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().PaginateKtp(rctx, args["input"].(model.Pagination))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PaginationResultKtp)
+	fc.Result = res
+	return ec.marshalNPaginationResultKtp2ᚖktpᚑfixᚋgraphᚋmodelᚐPaginationResultKtp(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2122,6 +2546,58 @@ func (ec *executionContext) unmarshalInputNewKtp(ctx context.Context, obj interf
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputPagination(ctx context.Context, obj interface{}) (model.Pagination, error) {
+	var it model.Pagination
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "first":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("first"))
+			it.First, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "offset":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+			it.Offset, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "after":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("after"))
+			it.After, err = ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "query":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
+			it.Query, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "sort":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sort"))
+			it.Sort, err = ec.unmarshalNString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -2233,6 +2709,107 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	return out
 }
 
+var paginationEdgeKtpImplementors = []string{"PaginationEdgeKtp"}
+
+func (ec *executionContext) _PaginationEdgeKtp(ctx context.Context, sel ast.SelectionSet, obj *model.PaginationEdgeKtp) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, paginationEdgeKtpImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PaginationEdgeKtp")
+		case "node":
+			out.Values[i] = ec._PaginationEdgeKtp_node(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "cursor":
+			out.Values[i] = ec._PaginationEdgeKtp_cursor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var paginationInfoKtpImplementors = []string{"PaginationInfoKtp"}
+
+func (ec *executionContext) _PaginationInfoKtp(ctx context.Context, sel ast.SelectionSet, obj *model.PaginationInfoKtp) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, paginationInfoKtpImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PaginationInfoKtp")
+		case "endCursor":
+			out.Values[i] = ec._PaginationInfoKtp_endCursor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "hasNextPAge":
+			out.Values[i] = ec._PaginationInfoKtp_hasNextPAge(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var paginationResultKtpImplementors = []string{"PaginationResultKtp"}
+
+func (ec *executionContext) _PaginationResultKtp(ctx context.Context, sel ast.SelectionSet, obj *model.PaginationResultKtp) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, paginationResultKtpImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PaginationResultKtp")
+		case "totalcount":
+			out.Values[i] = ec._PaginationResultKtp_totalcount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "edges":
+			out.Values[i] = ec._PaginationResultKtp_edges(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "pageInfo":
+			out.Values[i] = ec._PaginationResultKtp_pageInfo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -2268,6 +2845,20 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getKtp(ctx, field)
+				return res
+			})
+		case "paginateKtp":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_paginateKtp(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
 				return res
 			})
 		case "__type":
@@ -2560,6 +3151,21 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 	return res
 }
 
+func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
+	res, err := graphql.UnmarshalInt(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+	res := graphql.MarshalInt(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) marshalNKtp2ktpᚑfixᚋinternalᚋmodelsᚐKtp(ctx context.Context, sel ast.SelectionSet, v models.Ktp) graphql.Marshaler {
 	return ec._Ktp(ctx, sel, &v)
 }
@@ -2579,6 +3185,82 @@ func (ec *executionContext) unmarshalNNewKtp2ktpᚑfixᚋinternalᚋmodelsᚐNew
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNPagination2ktpᚑfixᚋgraphᚋmodelᚐPagination(ctx context.Context, v interface{}) (model.Pagination, error) {
+	res, err := ec.unmarshalInputPagination(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNPaginationEdgeKtp2ᚕᚖktpᚑfixᚋgraphᚋmodelᚐPaginationEdgeKtpᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PaginationEdgeKtp) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNPaginationEdgeKtp2ᚖktpᚑfixᚋgraphᚋmodelᚐPaginationEdgeKtp(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNPaginationEdgeKtp2ᚖktpᚑfixᚋgraphᚋmodelᚐPaginationEdgeKtp(ctx context.Context, sel ast.SelectionSet, v *model.PaginationEdgeKtp) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._PaginationEdgeKtp(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPaginationInfoKtp2ᚖktpᚑfixᚋgraphᚋmodelᚐPaginationInfoKtp(ctx context.Context, sel ast.SelectionSet, v *model.PaginationInfoKtp) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._PaginationInfoKtp(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPaginationResultKtp2ktpᚑfixᚋgraphᚋmodelᚐPaginationResultKtp(ctx context.Context, sel ast.SelectionSet, v model.PaginationResultKtp) graphql.Marshaler {
+	return ec._PaginationResultKtp(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPaginationResultKtp2ᚖktpᚑfixᚋgraphᚋmodelᚐPaginationResultKtp(ctx context.Context, sel ast.SelectionSet, v *model.PaginationResultKtp) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._PaginationResultKtp(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -2592,6 +3274,36 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v interface{}) (time.Time, error) {
@@ -2860,6 +3572,21 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 		return graphql.Null
 	}
 	return graphql.MarshalBoolean(*v)
+}
+
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return graphql.MarshalID(*v)
 }
 
 func (ec *executionContext) marshalOKtp2ᚕᚖktpᚑfixᚋinternalᚋmodelsᚐKtp(ctx context.Context, sel ast.SelectionSet, v []*models.Ktp) graphql.Marshaler {

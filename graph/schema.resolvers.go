@@ -6,6 +6,7 @@ package graph
 import (
 	"context"
 	"ktp-fix/graph/generated"
+	"ktp-fix/graph/model"
 	"ktp-fix/internal/handlers"
 	"ktp-fix/internal/models"
 )
@@ -28,6 +29,10 @@ func (r *queryResolver) GetAllKtp(ctx context.Context) ([]*models.Ktp, error) {
 
 func (r *queryResolver) GetKtp(ctx context.Context, id string) (*models.Ktp, error) {
 	return handlers.GetKtpHandler(ctx, id)
+}
+
+func (r *queryResolver) PaginateKtp(ctx context.Context, input model.Pagination) (*model.PaginationResultKtp, error) {
+	return handlers.PaginateKtpHandler(ctx, input)
 }
 
 // Mutation returns generated.MutationResolver implementation.

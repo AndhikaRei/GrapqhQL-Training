@@ -124,10 +124,10 @@ Database drivers: `+strings.Join(database.List(), ", ")+"\n", createUsage, gotoU
 		//d := os.Getenv("MYSQL_DATABASE")
 
 		// h := "localhost"
-		// u := "exam_engine_user"
-		// pwd := "exam_engine_password"
-		// p := "3306"
-		// d := "exam_engine_db"
+		// u := "reihan"
+		// pwd := "reihan"
+		// p := "3311"
+		// d := "ktp"
 		h := "mariadb"
 		u := "reihan"
 		pwd := "reihan"

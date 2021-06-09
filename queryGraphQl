@@ -5,9 +5,15 @@ query  {
 }
 
 mutation {
-	createKtp(input: {nik: "111", tanggal_lahir:"2020-05-01", nama:"reihan", agama:"islam", jenis_kelamin:"laki-laki"}){
-	nik,
-	}
+	createKtp(input: {
+    nik: "111", 
+    tanggal_lahir:"2020-05-01", 
+    nama:"reihan", 
+    agama:"islam", 
+    jenis_kelamin:"laki-laki"
+  }) {
+    nik
+  }
 }
 
 mutation {
@@ -21,3 +27,39 @@ mutation {
 	
 	}
 }
+
+query {
+	getAllKtp(){
+		nik
+	}
+}
+
+query {
+	paginateKtp(input: {
+		first:5,
+		offset:3,
+		after:"5",
+		query:"rei",
+		sort: [],
+  }){
+    totalcount,
+    pageInfo{
+      endCursor,
+      hasNextPAge
+    },
+    edges{
+      cursor, 
+      node{
+        jenis_kelamin,
+        nik,
+        nama
+      }
+    }
+  }
+}
+" GetAllKtp will get all Ktp from database "
+" GetKtp will get Ktp with specific id"
+" PaginateKtp will search ktp with pagination "
+" CreateKtp will create Ktp from data input "
+" UpdateKtp will update Ktp with specific id using data input "
+" DeleteKtp will delete Ktp with specific id "

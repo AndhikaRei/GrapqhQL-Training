@@ -3,7 +3,7 @@ services:
   ktp:
     build: .
     ports: 
-      - 8085:8080
+      - 8080:8080
     networks:
       - dbconnect
     depends_on:
@@ -12,15 +12,17 @@ services:
   mariadb:
     image: mariadb:10.3
     ports:
-      - 3311:3306
-    environment:
-      - MYSQL_ROOT_PASSWORD=reihan
-      - MYSQL_DATABASE=ktp
-      - MYSQL_USER=reihan
-      - MYSQL_PASSWORD=reihan
+      - 3306:3306
+    env_file:
+      - .env
     networks:
       - dbconnect
+    volumes:
+      - maria-data:/var/lib/mysql/data
     restart: unless-stopped
 networks:
   dbconnect:
     driver: bridge
+volumes:
+  maria-data:
+    driver: local
