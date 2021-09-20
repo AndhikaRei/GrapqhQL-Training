@@ -1,2 +1,2 @@
-# crud-ktp
-test
+# Graphql Training
+Simple GraphQL API using golang with gqlgen.
